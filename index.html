@@ -1,1 +1,148 @@
+html
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>منصة سهلناها - أدوات PDF</title>
+    <meta name="theme-color" content="#6b21a8">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Tajawal', sans-serif; background: #f3f4f6; }
+        .active-card { border: 3px solid #fbbf24; background: white !important; transform: translateY(-5px); }
+    </style>
+</head>
+<body class="pb-20">
+    <header class="bg-purple-700 text-white pt-10 pb-20 text-center shadow-lg">
+        <h1 class="text-3xl font-bold">منصة سهلناها</h1>
+        <p class="opacity-80">أدوات تعليمية ذكية بين يديك</p>
+    </header>
 
+    <main class="max-w-4xl mx-auto -mt-10 px-4">
+        <div class="grid grid-cols-3 gap-3 mb-8">
+            <div onclick="switchTool('merge')" id="btn-merge" class="active-card bg-white/80 p-4 rounded-2xl shadow text-center cursor-pointer transition-all">
+                <div class="text-purple-600 mb-2">📸</div>
+                <div class="text-xs font-bold">تجميع صور</div>
+            </div>
+            <div onclick="switchTool('split')" id="btn-split" class="bg-white/80 p-4 rounded-2xl shadow text-center cursor-pointer transition-all">
+                <div class="text-blue-600 mb-2">📄</div>
+                <div class="text-xs font-bold">فك PDF</div>
+            </div>
+            <div onclick="switchTool('compress')" id="btn-compress" class="bg-white/80 p-4 rounded-2xl shadow text-center cursor-pointer transition-all">
+                <div class="text-green-600 mb-2">📉</div>
+                <div class="text-xs font-bold">ضغط PDF</div>
+            </div>
+        </div>
+
+        <section id="sec-merge">
+            <div class="bg-white p-8 rounded-3xl border-2 border-dashed border-purple-200 text-center">
+                <input type="file" id="imgInput" multiple accept="image/*" class="hidden" onchange="loadImgs(event)">
+                <label for="imgInput" class="cursor-pointer block">
+                    <div class="text-4xl mb-2">➕</div>
+                    <div class="font-bold text-gray-700">اضغط لإضافة صور</div>
+                </label>
+            </div>
+            <div id="mergeToolbar" class="mt-6 flex justify-between items-center hidden bg-white p-3 rounded-xl shadow">
+                <span class="text-purple-700 font-bold">الصور: <span id="imgCount">0</span></span>
+                <button onclick="makePDF()" class="bg-purple-600 text-white px-6 py-2 rounded-lg font-bold">تحويل لـ PDF</button>
+            </div>
+            <div id="preview" class="grid grid-cols-2 gap-4 mt-6"></div>
+        </section>
+
+        <section id="sec-split" class="hidden">
+            <div class="bg-white p-8 rounded-3xl border-2 border-dashed border-blue-200 text-center">
+                <input type="file" id="pdfInput" accept="application/pdf" class="hidden" onchange="pdfToImg(event)">
+                <label for="pdfInput" class="cursor-pointer block">
+                    <div class="text-4xl mb-2">📂</div>
+                    <div class="font-bold text-gray-700">اختر ملف PDF لفكّه</div>
+                </label>
+            </div>
+            <div id="pdfOutput" class="grid grid-cols-2 gap-4 mt-6"></div>
+        </section>
+
+        <section id="sec-compress" class="hidden text-center py-10">
+            <div class="text-gray-400">ميزة الضغط ستتوفر قريباً.. سهلناها عليك!</div>
+        </section>
+    </main>
+
+    <div id="loader" class="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] hidden">
+        <div class="bg-white p-6 rounded-2xl">جاري المعالجة...</div>
+    </div>
+
+    <script>
+        let imgs = [];
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        function switchTool(t) {
+            ['merge', 'split', 'compress'].forEach(x => {
+                document.getElementById('sec-'+x).classList.add('hidden');
+                document.getElementById('btn-'+x).classList.remove('active-card');
+            });
+            document.getElementById('sec-'+t).classList.remove('hidden');
+            document.getElementById('btn-'+t).classList.add('active-card');
+        }
+
+        function loadImgs(e) {
+            const files = e.target.files;
+            Array.from(files).forEach(f => {
+                const r = new FileReader();
+                r.onload = (ex) => { imgs.push(ex.target.result); render(); };
+                r.readAsDataURL(f);
+            });
+        }
+
+        function render() {
+            const g = document.getElementById('preview');
+            const t = document.getElementById('mergeToolbar');
+            g.innerHTML = '';
+            if(imgs.length > 0) t.classList.remove('hidden');
+            document.getElementById('imgCount').innerText = imgs.length;
+            imgs.forEach((s, i) => {
+                const d = document.createElement('div');
+                d.className = 'relative bg-white p-2 rounded-lg shadow';
+                d.innerHTML = `<img src="${s}" class="w-full h-32 object-cover rounded">
+                <button onclick="imgs.splice(${i},1);render()" class="absolute top-0 right-0 bg-red-500 text-white rounded-full w-6 h-6">×</button>`;
+                g.appendChild(d);
+            });
+        }
+
+        async function makePDF() {
+            document.getElementById('loader').classList.remove('hidden');
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            for(let i=0; i<imgs.length; i++) {
+                if(i>0) doc.addPage();
+                doc.addImage(imgs[i], 'JPEG', 10, 10, 190, 260);
+            }
+            doc.save('Sahlennaha.pdf');
+            document.getElementById('loader').classList.add('hidden');
+        }
+
+        async function pdfToImg(e) {
+            const f = e.target.files[0];
+            if(!f) return;
+            document.getElementById('loader').classList.remove('hidden');
+            const b = await f.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({data: b}).promise;
+            const out = document.getElementById('pdfOutput');
+            out.innerHTML = '';
+            for(let i=1; i<=pdf.numPages; i++) {
+                const p = await pdf.getPage(i);
+                const v = p.getViewport({scale: 1});
+                const c = document.createElement('canvas');
+                const ctx = c.getContext('2d');
+                c.height = v.height; c.width = v.width;
+                await p.render({canvasContext: ctx, viewport: v}).promise;
+                const d = document.createElement('div');
+                d.innerHTML = `<img src="${c.toDataURL()}" class="w-full rounded shadow mb-2"><a href="${c.toDataURL()}" download="page_${i}.png" class="text-xs text-blue-600 font-bold">حفظ الصورة</a>`;
+                out.appendChild(d);
+            }
+            document.getElementById('loader').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
